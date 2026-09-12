@@ -49,6 +49,18 @@ pkgs.stdenv.mkDerivation {
     mkdir -p $out/lib
     cp -r lib/* $out/lib/ || true
 
+    ${pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
+      # The binary is linked inside the build tree, so its only LC_RPATH names
+      # a directory that is gone by the time `checks.<sys>.tests` runs it and
+      # `@rpath/liblogos_module_client.dylib` resolves nowhere -- dyld aborts
+      # with `Library not loaded`. Name the copy in $out/lib directly; every
+      # other dependency of this binary is already an absolute store path.
+      install_name_tool -change \
+        @rpath/liblogos_module_client.dylib \
+        $out/lib/liblogos_module_client.dylib \
+        $out/bin/module_client_tests
+    ''}
+
     ${pkgs.lib.optionalString pkgs.stdenv.isLinux ''
       # rpath must cover every runtime lib the binary transitively pulls in.
       # Qt + gtest + libstdc++ is what this test binary used to need; since
